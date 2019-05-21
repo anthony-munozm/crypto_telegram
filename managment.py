@@ -3,6 +3,7 @@ from telethon.tl.functions.messages import ImportChatInviteRequest
 import requests
 import json
 from time import sleep
+import time
 
 from telethon.tl.types import PeerChannel
 
@@ -63,7 +64,8 @@ def addMasterChannel(chat_id, update_id, connection):
     sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" + str(id) + ")"
     cursor = connection.cursor()
     result = cursor.execute(sql_insert_query)
-    sql_insert_query = "INSERT IGNORE INTO `user` (`entity`) VALUES (" + str(client.get_me().id) + ")"
+    sql_insert_query = "INSERT IGNORE INTO `user` (`entity`, `last_forward`) VALUES (" + str(id) + ","
+    str(time.time())+")"
     result = cursor.execute(sql_insert_query)
 
     sql_select_query = "select `id` from `user` where `entity` = " + str(client.get_me().id)
@@ -134,7 +136,12 @@ def addSourceChannel(chat_id, update_id, connection):
     sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" + str(id) + ")"
     cursor = connection.cursor()
     result = cursor.execute(sql_insert_query)
-    sql_insert_query = "INSERT IGNORE INTO `user` (`entity`) VALUES (" + str(client.get_me().id) + ")"
+    sql_insert_query = sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" +\
+                                          str(id) + ","+time.time()+")"
+    result = cursor.execute(sql_insert_query)
+
+    sql_insert_query = "INSERT IGNORE INTO `user` (`entity`, `last_forward`) VALUES (" + str(id) + ","
+    str(time.time()) + ")"
     result = cursor.execute(sql_insert_query)
 
     sql_select_query = "select `id` from `user` where `entity` = " + str(client.get_me().id)
@@ -157,6 +164,25 @@ def addSourceChannel(chat_id, update_id, connection):
     print("Record inserted successfully into python_users table")
 
     message = "Added!"
+    send_message(chat_id, message)
+
+
+def enable_disable(chat_id, update_id, connection):
+    cursor = connection.cursor()
+
+    sql_select_query = "UPDATE user SET start = !start WHERE entity = " + str(client.get_me().id)
+    result = cursor.execute(sql_select_query)
+    connection.commit()
+
+    sql_select_query = "select start from user WHERE entity = " + str(client.get_me().id)
+    cursor.execute(sql_select_query)
+    record = cursor.fetchall()
+    for row in record:
+        if row[0] == 0:
+            message = "Turned off!"
+        else:
+            message = "Turned on!"
+
     send_message(chat_id, message)
 
 
@@ -384,6 +410,8 @@ def menu(chat_id, text, update_id, connection):
         deleteFilter(chat_id, update_id, connection)
     elif text == 'View Channels':
         viewChannel(chat_id, update_id, connection)
+    elif text == 'Start/Stop':
+        enable_disable(chat_id, update_id, connection)
 
 
 def main():
@@ -407,11 +435,11 @@ def main():
         chat_id, text, update_id = start(chat_id)
         print('Started')
         dialogs = client.get_dialogs()
-        print(dialogs)
+        # print(dialogs)
         # client.forward_messages(354659824, dialogs, 354659824)
         # for message in client.iter_messages(354659824, search="asd"): -----Filter-----
-        for message in client.iter_messages(354659824, search="asd"):
-            print(message.sender_id, ':', message.text)
+        for message in client.iter_messages(354659824):
+            print(message.sender_id, ':', message.text, " date: ", message.date)
 
         while text.lower() != 'y':
             sleep(1)
