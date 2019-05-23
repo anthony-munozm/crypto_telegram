@@ -1,17 +1,11 @@
-from pprint import pprint
 from telethon.tl.functions.messages import ImportChatInviteRequest
 import requests
 import json
 from time import sleep
-import time
 
-from telethon.tl.types import PeerChannel
+from telethon.tl.types import PeerChat
 
 from cryptogroupsbot.loginByTelethon import client
-from cryptogroupsbot.tele_news import *
-from cryptogroupsbot.tele_saavn import *
-from cryptogroupsbot.tele_temp import temp
-from cryptogroupsbot.tele_cricket import *
 import mysql.connector
 from mysql.connector import Error
 
@@ -19,7 +13,7 @@ token = '890843151:AAE43ZXhsgy08CeWgbhb5l5zRjI85-XMlug'
 url = 'https://api.telegram.org/bot{}/'.format(token)
 
 
-def addMasterChannel(chat_id, update_id, connection):
+def addMasterChannel(chat_id, update_id, cursor, user_id, connection):
     print("in")
     message = 'Write the invitational link from the channel where you want to read all the messages:'
     send_message(chat_id, message)
@@ -29,6 +23,8 @@ def addMasterChannel(chat_id, update_id, connection):
         chat_id, text, update_id = get_last_id_text(get_updates(update_id + 1))
         sleep(0.5)
 
+    id_channel = 0
+
     if "https://t.me/joinchat/" in text:
 
         text_proc = text.rpartition('https://t.me/joinchat/')
@@ -38,7 +34,7 @@ def addMasterChannel(chat_id, update_id, connection):
             print(e)
             pass
 
-        id = client.get_entity(text).id
+        id_channel = client.get_entity(text).id
 
     elif "t.me/joinchat/" in text:
 
@@ -49,7 +45,7 @@ def addMasterChannel(chat_id, update_id, connection):
             print(e)
             pass
 
-        id = client.get_entity("https://" + text).id
+        id_channel = client.get_entity("https://" + text).id
 
     else:
 
@@ -59,39 +55,23 @@ def addMasterChannel(chat_id, update_id, connection):
             print(e)
             pass
 
-        id = client.get_entity("https://t.me/joinchat/" + text).id
+            id_channel = client.get_entity("https://t.me/joinchat/" + text).id
 
-    sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" + str(id) + ")"
-    cursor = connection.cursor()
-    result = cursor.execute(sql_insert_query)
-    sql_insert_query = "INSERT IGNORE INTO `user` (`entity`, `last_forward`) VALUES (" + str(id) + ","
-    str(time.time())+")"
+    sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" + str(id_channel) + ")"
     result = cursor.execute(sql_insert_query)
 
-    sql_select_query = "select `id` from `user` where `entity` = " + str(client.get_me().id)
-    cursor.execute(sql_select_query)
-    record = cursor.fetchall()
-    for row in record:
-        id_user = row[0]
-
-    sql_select_query = "select id from `channel` where `entity` = " + str(id)
-    cursor.execute(sql_select_query)
-    record = cursor.fetchall()
-    for row in record:
-        id_channel = row[0]
-
-    sql_insert_query = "INSERT IGNORE INTO `channel_user` (`id_user`, `id_channel` ,`type`) VALUES (" \
-                       + str(id_user) + ", " + str(id_channel) + ", 1 )"
-
+    sql_insert_query = "INSERT IGNORE INTO `channel_user` (`id_user`, `id_channel` ,`type`) VALUES (" +\
+                       str(user_id) + ", " + str(id_channel) + ", 1 )"
+    print(sql_insert_query)
     result = cursor.execute(sql_insert_query)
     connection.commit()
     print("Record inserted successfully into python_users table")
-
+    connection.commit()
     message = "Added!"
     send_message(chat_id, message)
 
 
-def addSourceChannel(chat_id, update_id, connection):
+def addSourceChannel(chat_id, update_id, cursor, user_id, connection):
     print("in")
     message = 'Write the invitational link from the channel where you want to get messages:'
     send_message(chat_id, message)
@@ -101,6 +81,8 @@ def addSourceChannel(chat_id, update_id, connection):
         chat_id, text, update_id = get_last_id_text(get_updates(update_id + 1))
         sleep(0.5)
 
+    id_channel = 0
+
     if "https://t.me/joinchat/" in text:
 
         text_proc = text.rpartition('https://t.me/joinchat/')
@@ -110,7 +92,7 @@ def addSourceChannel(chat_id, update_id, connection):
             print(e)
             pass
 
-        id = client.get_entity(text).id
+        id_channel = client.get_entity(text).id
 
     elif "t.me/joinchat/" in text:
 
@@ -121,7 +103,7 @@ def addSourceChannel(chat_id, update_id, connection):
             print(e)
             pass
 
-        id = client.get_entity("https://" + text).id
+        id_channel = client.get_entity("https://" + text).id
 
     else:
 
@@ -131,50 +113,30 @@ def addSourceChannel(chat_id, update_id, connection):
             print(e)
             pass
 
-        id = client.get_entity("https://t.me/joinchat/" + text).id
-        print(client.get_entity("https://t.me/joinchat/" + text))
-    sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" + str(id) + ")"
+        id_channel = client.get_entity("https://t.me/joinchat/" + text).id
+
+    sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" + str(id_channel) + ")"
     cursor = connection.cursor()
     result = cursor.execute(sql_insert_query)
-    sql_insert_query = sql_insert_query = "INSERT IGNORE INTO `channel` (`entity`) VALUES (" +\
-                                          str(id) + ","+time.time()+")"
-    result = cursor.execute(sql_insert_query)
 
-    sql_insert_query = "INSERT IGNORE INTO `user` (`entity`, `last_forward`) VALUES (" + str(id) + ","
-    str(time.time()) + ")"
-    result = cursor.execute(sql_insert_query)
-
-    sql_select_query = "select `id` from `user` where `entity` = " + str(client.get_me().id)
-    cursor.execute(sql_select_query)
-    record = cursor.fetchall()
-    for row in record:
-        id_user = row[0]
-
-    sql_select_query = "select id from `channel` where `entity` = " + str(id)
-    cursor.execute(sql_select_query)
-    record = cursor.fetchall()
-    for row in record:
-        id_channel = row[0]
-
-    sql_insert_query = "INSERT IGNORE INTO `channel_user` (`id_user`, `id_channel` ,`type`) VALUES (" \
-                       + str(id_user) + ", " + str(id_channel) + ", 2 )"
-
+    sql_insert_query = "INSERT IGNORE INTO `channel_user` (`id_user`, `id_channel` ,`type`) VALUES (" + \
+                       str(user_id) + ", " + str(id_channel) + ", 2 )"
+    print(sql_insert_query)
     result = cursor.execute(sql_insert_query)
     connection.commit()
     print("Record inserted successfully into python_users table")
-
+    connection.commit()
     message = "Added!"
     send_message(chat_id, message)
 
 
-def enable_disable(chat_id, update_id, connection):
-    cursor = connection.cursor()
+def enable_disable(chat_id, connection, cursor, user_id):
 
-    sql_select_query = "UPDATE user SET start = !start WHERE entity = " + str(client.get_me().id)
+    sql_select_query = "UPDATE user SET start = !start WHERE entity = " + str(user_id)
     result = cursor.execute(sql_select_query)
-    connection.commit()
 
-    sql_select_query = "select start from user WHERE entity = " + str(client.get_me().id)
+    sql_select_query = "select start from user WHERE entity = " + str(user_id)
+    print(sql_select_query)
     cursor.execute(sql_select_query)
     record = cursor.fetchall()
     for row in record:
@@ -184,9 +146,10 @@ def enable_disable(chat_id, update_id, connection):
             message = "Turned on!"
 
     send_message(chat_id, message)
+    connection.commit()
 
 
-def addFilter(chat_id, update_id, connection):
+def addFilter(chat_id, update_id, connection, cursor, user_id):
     print("in")
     message = 'Write the text you want to filter:'
     send_message(chat_id, message)
@@ -196,14 +159,7 @@ def addFilter(chat_id, update_id, connection):
         chat_id, text, update_id = get_last_id_text(get_updates(update_id + 1))
         sleep(0.5)
 
-    cursor = connection.cursor()
-
-    sql_select_query = "select `id` from `user` where `entity` = " + str(client.get_me().id)
-    cursor.execute(sql_select_query)
-    record = cursor.fetchall()
-    for row in record:
-        id_user = row[0]
-    sql_insert_query = "INSERT IGNORE INTO `filter` (`id_user`, `text`) VALUES (" + str(id_user) + \
+    sql_insert_query = "INSERT IGNORE INTO `filter` (`id_user`, `text`) VALUES (" + str(user_id) + \
                        ", '" + text + "')"
     result = cursor.execute(sql_insert_query)
     print(result)
@@ -213,21 +169,13 @@ def addFilter(chat_id, update_id, connection):
     send_message(chat_id, message)
 
 
-def deleteFilter(chat_id, update_id, connection):
-    print("inn")
+def deleteFilter(chat_id, update_id, connection, cursor, user_id):
     message = 'Filters:'
     send_message(chat_id, message)
 
     cursor = connection.cursor()
 
-    sql_query = "select `id` from `user` where `entity` = " + str(client.get_me().id)
-    print(sql_query)
-    cursor.execute(sql_query)
-    record = cursor.fetchall()
-    for row in record:
-        id_user = row[0]
-
-    sql_query = "select `text` from `filter` where `id_user` = " + str(id_user)
+    sql_query = "select `text` from `filter` where `id_user` = " + str(user_id)
     cursor.execute(sql_query)
     record = cursor.fetchall()
     for row in record:
@@ -243,7 +191,7 @@ def deleteFilter(chat_id, update_id, connection):
         chat_id, text, update_id = get_last_id_text(get_updates(update_id + 1))
         sleep(0.5)
 
-    sql_query = "DELETE FROM `filter` WHERE `text` = '" + text + "' and id_user = " + str(id_user)
+    sql_query = "DELETE FROM `filter` WHERE `text` = '" + text + "' and id_user = " + str(user_id)
 
     result = cursor.execute(sql_query)
 
@@ -253,37 +201,17 @@ def deleteFilter(chat_id, update_id, connection):
     send_message(chat_id, message)
 
 
-def viewChannel(chat_id, update_id, connection):
+def viewChannel(chat_id, connection, cursor, user_id):
     print("in")
-    entity = client.get_input_entity(PeerChannel(395315655))
-    print(entity)
     message = 'Channels:'
     send_message(chat_id, message)
-    cursor = connection.cursor()
 
-    sql_query = "select `id` from `user` where `entity` = " + str(client.get_me().id)
-    print(sql_query)
+    sql_query = "select `id_channel` from `channel_user` where `id_user` = " + str(user_id)
     cursor.execute(sql_query)
     record = cursor.fetchall()
     for row in record:
-        id_user = row[0]
-
-    sql_query = "select `id_channel` from `channel_user` where `id_user` = " + str(id_user)
-    cursor.execute(sql_query)
-    record = cursor.fetchall()
-    for row in record:
-        for item in row:
-            sql_query = "select `entity` from `channel` where `id` = " + str(item)
-            cursor.execute(sql_query)
-            record2 = cursor.fetchall()
-            for row2 in record2:
-                for item2 in row2:
-                    print("Row: " + str(item2))
-                    entity = client.get_entity(item2)
-                    print(entity)
-                    send_message(chat_id, item2)
-
-    connection.commit()
+        entity = client.get_input_entity(PeerChat(row[0]))
+        print(entity)
 
 
 def get_updates(offset=None):
@@ -324,6 +252,7 @@ def get_last_id_text(updates):
 
 
 def send_message(chat_id, text, reply_markup=None):
+    print(chat_id)
     URL = url + "sendMessage?text={}&chat_id={}&parse_mode=Markdown".format(text, chat_id)
     if reply_markup:
         URL += '&reply_markup={}'.format(reply_markup)
@@ -385,7 +314,7 @@ def end(chat_id, text, update_id):
         return 'n'
 
 
-def menu(chat_id, text, update_id, connection):
+def menu(chat_id, text, update_id, cursor, user_id, connection):
     commands = ['Add Master Channel', 'Add Source Channel', 'View Channels', 'Delete Source/Master', 'Add Filter',
                 'Remove Filter', 'Start/Stop']
     welcome_note(chat_id, commands)
@@ -401,17 +330,17 @@ def menu(chat_id, text, update_id, connection):
         print("waiting 2")
 
     if text == 'Add Master Channel':
-        addMasterChannel(chat_id, update_id, connection)
+        addMasterChannel(chat_id, update_id, cursor, user_id, connection)
     elif text == 'Add Source Channel':
-        addSourceChannel(chat_id, update_id, connection)
+        addSourceChannel(chat_id, update_id, cursor, user_id, connection)
     elif text == 'Add Filter':
-        addFilter(chat_id, update_id, connection)
+        addFilter(chat_id, update_id, connection, cursor, user_id)
     elif text == 'Remove Filter':
-        deleteFilter(chat_id, update_id, connection)
+        deleteFilter(chat_id, update_id, connection, cursor, user_id)
     elif text == 'View Channels':
-        viewChannel(chat_id, update_id, connection)
+        viewChannel(chat_id, connection, cursor, user_id)
     elif text == 'Start/Stop':
-        enable_disable(chat_id, update_id, connection)
+        enable_disable(chat_id, connection, cursor, user_id)
 
 
 def main():
@@ -429,24 +358,26 @@ def main():
             record = cursor.fetchone()
             print("Your connected to - ", record)
 
-
         text = ''
         chat_id, text, update_id = get_last_id_text(get_updates())
         chat_id, text, update_id = start(chat_id)
         print('Started')
-        dialogs = client.get_dialogs()
-        # print(dialogs)
-        # client.forward_messages(354659824, dialogs, 354659824)
-        # for message in client.iter_messages(354659824, search="asd"): -----Filter-----
-        for message in client.iter_messages(354659824):
-            print(message.sender_id, ':', message.text, " date: ", message.date)
 
         while text.lower() != 'y':
             sleep(1)
             text = 'start'
-            menu(chat_id, text, update_id, connection)
-            text = 'y'
 
+            user_id = client.get_entity(text).id
+            cursor = connection.cursor()
+
+            sql_insert_query = "INSERT IGNORE INTO `user` (`entity`, `last_forward`) VALUES (" + str(user_id) + \
+                               ", (select UNIX_TIMESTAMP()))"
+            print(sql_insert_query)
+            result = cursor.execute(sql_insert_query)
+            connection.commit()
+
+            menu(chat_id, text, update_id, cursor, user_id, connection)
+            text = 'y'
             chat_id, text, update_id = get_last_id_text(get_updates())
             text = end(chat_id, text, update_id)
 
@@ -458,6 +389,7 @@ def main():
             cursor.close()
             connection.close()
             print("MySQL connection is closed")
+
 
 if __name__ == '__main__':
     main()
