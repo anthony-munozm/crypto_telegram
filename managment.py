@@ -173,8 +173,6 @@ def deleteFilter(chat_id, update_id, connection, cursor, user_id):
     message = 'Filters:'
     send_message(chat_id, message)
 
-    cursor = connection.cursor()
-
     sql_query = "select `text` from `filter` where `id_user` = " + str(user_id)
     cursor.execute(sql_query)
     record = cursor.fetchall()
@@ -202,16 +200,25 @@ def deleteFilter(chat_id, update_id, connection, cursor, user_id):
 
 
 def viewChannel(chat_id, connection, cursor, user_id):
-    print("in")
-    message = 'Channels:'
+    message = '-----Master Channels-----'
     send_message(chat_id, message)
-
-    sql_query = "select `id_channel` from `channel_user` where `id_user` = " + str(user_id)
+    sql_query = "select `id_channel` from `channel_user` where `id_user` = " + str(user_id) + " and `type` = 1"
+    print(sql_query)
     cursor.execute(sql_query)
     record = cursor.fetchall()
     for row in record:
-        entity = client.get_input_entity(PeerChat(row[0]))
-        print(entity)
+        entity = client.get_entity(row[0])
+        msg = entity.title
+        send_message(chat_id, msg)
+    message = '-----Source Channels-----'
+    send_message(chat_id, message)
+    sql_query = "select `id_channel` from `channel_user` where `id_user` = " + str(user_id) + " and `type` = 2"
+    cursor.execute(sql_query)
+    record = cursor.fetchall()
+    for row in record:
+        entity = client.get_entity(row[0])
+        msg = entity.title
+        send_message(chat_id, msg)
 
 
 def get_updates(offset=None):
@@ -285,6 +292,47 @@ def welcome_note(chat_id, commands):
     send_message(chat_id, text, reply_markup)
 
 
+def delete_channel(connection, cursor, user_id):
+    chat_id, text, update_id = get_last_id_text(get_updates())
+    text = 'Select the channel you want to delete:'
+
+    channels = []
+    channels_name = {}
+
+    sql_query = "select `id_channel` from `channel_user` where `id_user` = " + str(user_id)
+    cursor.execute(sql_query)
+    record = cursor.fetchall()
+
+    for row in record:
+        entity = client.get_entity(row[0])
+        channels.append(entity.title)
+        channels_name[entity.title.lower()] = row[0]
+
+    keyboard = []
+    for i in range(0, len(channels), 2):
+        key = []
+        key.append(channels[i].title())
+        try:
+            key.append(channels[i + 1].title())
+        except:
+            pass
+        keyboard.append(key)
+
+    reply_markup = {"keyboard": keyboard, "one_time_keyboard": True}
+    send_message(chat_id, text, json.dumps(reply_markup))
+
+    while text.lower() == 'select the channel you want to delete:':
+        chat_id, text, update_id = get_last_id_text(get_updates(update_id + 1))
+        sleep(0.5)
+    x = channels_name.get(text.lower())
+
+    sql_query = "DELETE FROM `crypto_db`.`channel_user` WHERE `id_channel` = " + str(x) + " and id_user = " +\
+                str(user_id)
+    cursor.execute(sql_query)
+
+    connection.commit()
+
+
 def start(chat_id):
     message = 'Wanna Start'
     reply_markup = reply_markup_maker(['Start'])
@@ -339,8 +387,11 @@ def menu(chat_id, text, update_id, cursor, user_id, connection):
         deleteFilter(chat_id, update_id, connection, cursor, user_id)
     elif text == 'View Channels':
         viewChannel(chat_id, connection, cursor, user_id)
+    elif text == 'Delete Source/Master':
+        delete_channel(connection, cursor, user_id)
     elif text == 'Start/Stop':
         enable_disable(chat_id, connection, cursor, user_id)
+
 
 
 def main():
